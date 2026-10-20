@@ -6,7 +6,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-// Optional release signing from keystore.properties (git-ignored); otherwise the debug key.
+// The version lives in version.properties; a push that changes it publishes a release (.github/workflows/release.yml).
+val versions = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
+
+// Release signing from keystore.properties (git-ignored; CI writes it from secrets), otherwise the debug key.
+// Every published APK must be signed with the same key, or Android refuses to install it over the last one.
 val keystoreProps = Properties().apply {
     val f = rootProject.file("keystore.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -20,13 +24,15 @@ android {
         applicationId = "dev.m4s4t0.yawline"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = versions.getProperty("versionCode").toInt()
+        versionName = versions.getProperty("versionName")
+        // Where updates come from: this repository's GitHub releases.
+        buildConfigField("String", "UPDATE_REPO", "\"${keystoreProps.getProperty("updateRepo") ?: "M4S4T0-V01D/yawline"}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
-        if (keystoreProps.isNotEmpty()) {
+        if (keystoreProps.getProperty("storeFile") != null) {
             create("release") {
                 storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
                 storePassword = keystoreProps.getProperty("storePassword")

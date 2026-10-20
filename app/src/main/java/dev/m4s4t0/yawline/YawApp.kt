@@ -8,6 +8,7 @@ import dev.m4s4t0.yawline.ui.THEMES
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class YawApp : Application() {
     override fun onCreate() {
@@ -17,6 +18,7 @@ class YawApp : Application() {
         Yaw.palette = THEMES.firstOrNull { it.id == Prefs.theme } ?: THEMES.first()
         Sessions.init(this)
         Stages.init(this)
+        scope.launch { Updater.check(this@YawApp, quiet = true) }
     }
 
     companion object {

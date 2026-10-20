@@ -1,0 +1,89 @@
+# Builds and publishes YAWLINE.
+#  - A push to main that changes version.properties publishes that version. The app's Garage › Updates picks it up.
+#  - "Run workflow" by hand publishes the current version if it isn't released yet, or rebuilds it with "force".
+# Needs the repository secrets KEYSTORE_B64 (base64 of the signing keystore) and KEYSTORE_PASSWORD.
+name: Build and release
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Publish even if this version was already released
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: [version.properties]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          name=$(sed -n 's/^versionName=//p' version.properties)
+          echo "code=$(sed -n 's/^versionCode=//p' version.properties)" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=v$name" >> "$GITHUB_OUTPUT"
+          if gh release view "v$name" >/dev/null 2>&1 && [ "${{ inputs.force }}" != "true" ]; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "v$name is already released."
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.v.outputs.build == 'true'
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Android SDK platform
+        if: steps.v.outputs.build == 'true'
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" > /dev/null || true
+
+      - name: Test and build
+        if: steps.v.outputs.build == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/yawline.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=yawline\nkeyPassword=%s\n' "$RUNNER_TEMP/yawline.jks" "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > keystore.properties
+          ./gradlew --no-daemon testDebugUnitTest assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk YAWLINE.apk
+          rm keystore.properties "$RUNNER_TEMP/yawline.jks"
+
+      - name: Publish
+        if: steps.v.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="$(git log -1 --format=%s)"
+          python3 - "$notes" <<'EOF'
+          import hashlib, json, sys
+          apk = open("YAWLINE.apk", "rb").read()
+          json.dump({
+              "versionCode": int("${{ steps.v.outputs.code }}"),
+              "versionName": "${{ steps.v.outputs.name }}",
+              "sha256": hashlib.sha256(apk).hexdigest(),
+              "size": len(apk),
+              "notes": sys.argv[1],
+          }, open("latest.json", "w"), indent=2)
+          EOF
+          cat latest.json
+          gh release delete "${{ steps.v.outputs.tag }}" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "${{ steps.v.outputs.tag }}" YAWLINE.apk latest.json --title "YAWLINE ${{ steps.v.outputs.name }}" --notes "$notes" --latest

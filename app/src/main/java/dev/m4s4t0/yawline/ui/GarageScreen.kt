@@ -37,9 +37,11 @@ import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -62,9 +64,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import dev.m4s4t0.yawline.BuildConfig
 import dev.m4s4t0.yawline.Fmt
 import dev.m4s4t0.yawline.Prefs
 import dev.m4s4t0.yawline.Units
+import dev.m4s4t0.yawline.Updater
+import dev.m4s4t0.yawline.YawApp
 import dev.m4s4t0.yawline.obd.BleLink
 import dev.m4s4t0.yawline.obd.BtClassicLink
 import dev.m4s4t0.yawline.obd.Codes
@@ -330,6 +335,9 @@ fun GarageScreen() {
             }
         }
 
+        SectionTitle("Updates")
+        UpdatesPanel()
+
         // ------------------------------------------------ hardware
         SectionTitle("What to plug in")
         Panel(Modifier.fillMaxWidth()) {
@@ -361,6 +369,55 @@ fun GarageScreen() {
         },
         dismissButton = { TextButton({ confirmClear = false }) { Text("Cancel") } },
     )
+}
+
+/** Current version, a manual check, and the download/install of a newer GitHub release (see [Updater]). */
+@Composable
+private fun UpdatesPanel() {
+    val ctx = LocalContext.current
+    val st by Updater.state.collectAsState()
+    val release = when (val s = st) {
+        is Updater.State.Available -> s.release
+        is Updater.State.Downloading -> s.release
+        is Updater.State.Installing -> s.release
+        is Updater.State.Failed -> s.release
+        else -> null
+    }
+    Panel(Modifier.fillMaxWidth()) {
+        Text("YAWLINE ${BuildConfig.VERSION_NAME}", style = TextStyle(color = Yaw.text, fontWeight = FontWeight.Bold, fontSize = 15.sp))
+        if (release != null) {
+            Text("Version ${release.versionName} is available", style = TextStyle(color = Yaw.ok, fontWeight = FontWeight.Bold, fontSize = 14.sp), modifier = Modifier.padding(top = 6.dp))
+            if (release.notes.isNotBlank()) Hint(release.notes)
+            Spacer(Modifier.height(8.dp))
+            when (val s = st) {
+                is Updater.State.Downloading -> {
+                    LinearProgressIndicator(progress = { s.progress }, Modifier.fillMaxWidth(), color = Yaw.accent)
+                    Hint("Downloading… ${(s.progress * 100).toInt()}%", Modifier.padding(top = 4.dp))
+                }
+                is Updater.State.Installing -> Hint("Installing… (confirm in Android's installer if it asks)")
+                else -> {
+                    if (s is Updater.State.Failed) Text(s.message, style = TextStyle(color = Yaw.bad, fontSize = 14.sp), modifier = Modifier.padding(bottom = 8.dp))
+                    BigButton("UPDATE", Modifier.fillMaxWidth(), Icons.Filled.SystemUpdate, height = 44.dp) {
+                        YawApp.scope.launch { Updater.install(ctx, release) }
+                    }
+                }
+            }
+        } else {
+            Hint(
+                when (val s = st) {
+                    Updater.State.Checking -> "Checking…"
+                    Updater.State.UpToDate -> "You have the latest version."
+                    is Updater.State.Failed -> s.message
+                    else -> "Updates come from github.com/${BuildConfig.UPDATE_REPO}."
+                },
+                Modifier.padding(top = 4.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            BigButton("CHECK FOR UPDATES", Modifier.fillMaxWidth(), Icons.Filled.Refresh, filled = false, height = 44.dp) {
+                if (st != Updater.State.Checking) YawApp.scope.launch { Updater.check(ctx) }
+            }
+        }
+    }
 }
 
 @Composable

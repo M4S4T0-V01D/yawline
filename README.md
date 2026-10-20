@@ -46,6 +46,10 @@ keyPassword=…
 
 Requires JDK 17 and the Android SDK (compileSdk 36). minSdk 29 (Android 10).
 
+## Releases and updates
+
+Bump `versionCode` and `versionName` in `version.properties` and push to `main`. `.github/workflows/release.yml` builds a signed `YAWLINE.apk` and publishes it as a GitHub release with a `latest.json` (version, SHA-256, size, notes). The app checks for new releases at startup (at most every 6 h) and from Garage › Updates, verifies the checksum, and installs through Android's package installer. CI signs with the repository secrets `KEYSTORE_B64` and `KEYSTORE_PASSWORD`, which must hold the same key as `yawline-release.jks`.
+
 ## Layout
 
 ```
