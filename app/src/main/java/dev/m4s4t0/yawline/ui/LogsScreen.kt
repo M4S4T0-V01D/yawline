@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -55,6 +56,9 @@ import dev.m4s4t0.yawline.session.Export
 import dev.m4s4t0.yawline.session.Sample
 import dev.m4s4t0.yawline.session.Sessions
 import dev.m4s4t0.yawline.session.Summary
+import dev.m4s4t0.yawline.track.Geo
+import dev.m4s4t0.yawline.track.TrackKind
+import dev.m4s4t0.yawline.track.Tracks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
@@ -95,7 +99,7 @@ fun LogsScreen(onOpen: (String) -> Unit) {
 private enum class Metric(val label: String) { SPEED("Speed"), DRIFT("Drift"), LATG("Lat G"), THROTTLE("Throttle"), RPM("RPM") }
 
 @Composable
-fun ReplayScreen(id: String, onBack: () -> Unit, onStage: (String) -> Unit) {
+fun ReplayScreen(id: String, onBack: () -> Unit, onTrack: (String) -> Unit, onStage: (String) -> Unit) {
     val ctx = LocalContext.current
     val meta = Sessions.all.collectAsState().value.firstOrNull { it.id == id }
     var samples by remember { mutableStateOf<List<Sample>?>(null) }
@@ -235,6 +239,10 @@ fun ReplayScreen(id: String, onBack: () -> Unit, onStage: (String) -> Unit) {
                 onStage(st.id)
             }
             Hint("Turns every detected corner into a graded call, pinned to the road. A first draft to correct on the recce.", Modifier.padding(vertical = 8.dp))
+            BigButton("SAVE AS TRACK", Modifier.fillMaxWidth(), Icons.Filled.Route, filled = false) {
+                onTrack(Tracks.create(meta.name, TrackKind.GPS, Geo.thin(route, 5.0)).id)
+            }
+            Hint("Keeps the line driven in Tracks, to navigate it again.", Modifier.padding(vertical = 8.dp))
             Spacer(Modifier.height(24.dp))
         }
     }

@@ -14,13 +14,15 @@ import dev.m4s4t0.yawline.notes.CoDriver
 import dev.m4s4t0.yawline.notes.Recce
 import dev.m4s4t0.yawline.sensors.Telemetry
 import dev.m4s4t0.yawline.session.Recorder
+import dev.m4s4t0.yawline.track.Navigator
+import dev.m4s4t0.yawline.track.TrackRecorder
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * Keeps GPS, sensors and the voice alive with the screen off while something is running: a recording,
- * the co-driver or a recce. Stops itself when none of them are.
+ * the co-driver, a recce, a track being recorded or navigated. Stops itself when none of them are.
  */
 class DriveService : Service() {
     private var job: Job? = null
@@ -56,6 +58,8 @@ class DriveService : Service() {
         if (Recorder.recording) add("Recording")
         if (CoDriver.running) add("Co-driver: ${CoDriver.stage?.name ?: ""}")
         if (Recce.active) add("Recce: ${Recce.name}")
+        if (TrackRecorder.recording) add("Recording track")
+        if (Navigator.running) add("Navigating: ${Navigator.track?.name ?: ""}")
     }.joinToString(" · ").ifEmpty { "Ready" }
 
     private fun build(text: String): Notification {
@@ -74,7 +78,7 @@ class DriveService : Service() {
         private const val CHANNEL = "drive"
         private const val ID = 7
 
-        private fun busy() = Recorder.recording || CoDriver.running || Recce.active
+        private fun busy() = Recorder.recording || CoDriver.running || Recce.active || TrackRecorder.recording || Navigator.running
 
         fun start(ctx: Context) {
             runCatching { ContextCompat.startForegroundService(ctx, Intent(ctx, DriveService::class.java)) }

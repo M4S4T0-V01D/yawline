@@ -3,6 +3,8 @@ package dev.m4s4t0.yawline
 import android.app.Application
 import dev.m4s4t0.yawline.notes.Stages
 import dev.m4s4t0.yawline.session.Sessions
+import dev.m4s4t0.yawline.track.Tracks
+import dev.m4s4t0.yawline.ui.Tiles
 import dev.m4s4t0.yawline.ui.Yaw
 import dev.m4s4t0.yawline.ui.THEMES
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +20,8 @@ class YawApp : Application() {
         Yaw.palette = THEMES.firstOrNull { it.id == Prefs.theme } ?: THEMES.first()
         Sessions.init(this)
         Stages.init(this)
+        Tracks.init(this)
+        Tiles.init(this)
         scope.launch { Updater.check(this@YawApp, quiet = true) }
     }
 

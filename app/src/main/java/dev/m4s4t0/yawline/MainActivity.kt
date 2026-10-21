@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,16 +47,23 @@ import androidx.compose.ui.unit.sp
 import dev.m4s4t0.yawline.notes.CoDriver
 import dev.m4s4t0.yawline.notes.Recce
 import dev.m4s4t0.yawline.sensors.Telemetry
+import dev.m4s4t0.yawline.track.Navigator
+import dev.m4s4t0.yawline.track.TrackRecorder
 import dev.m4s4t0.yawline.ui.DashScreen
 import dev.m4s4t0.yawline.ui.DriftScreen
 import dev.m4s4t0.yawline.ui.GarageScreen
 import dev.m4s4t0.yawline.ui.LogsScreen
+import dev.m4s4t0.yawline.ui.NavScreen
 import dev.m4s4t0.yawline.ui.RaceScreen
 import dev.m4s4t0.yawline.ui.RecceScreen
 import dev.m4s4t0.yawline.ui.ReplayScreen
 import dev.m4s4t0.yawline.ui.StageScreen
 import dev.m4s4t0.yawline.ui.StagesScreen
 import dev.m4s4t0.yawline.ui.StatusBar
+import dev.m4s4t0.yawline.ui.TrackEditorScreen
+import dev.m4s4t0.yawline.ui.TrackRecordScreen
+import dev.m4s4t0.yawline.ui.TrackScreen
+import dev.m4s4t0.yawline.ui.TracksScreen
 import dev.m4s4t0.yawline.ui.Yaw
 import dev.m4s4t0.yawline.ui.YawTheme
 
@@ -114,13 +122,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String) { DASH("DASH"), DRIFT("DRIFT"), STAGES("STAGES"), LOGS("LOGS"), GARAGE("GARAGE") }
+private enum class Tab(val label: String) { DASH("DASH"), DRIFT("DRIFT"), TRACKS("TRACKS"), STAGES("STAGES"), LOGS("LOGS"), GARAGE("GARAGE") }
 
 @Composable
 private fun App(shared: String?, onSharedUsed: () -> Unit) {
     var tab by rememberSaveable { mutableStateOf(Tab.DASH) }
     var replay by rememberSaveable { mutableStateOf<String?>(null) }
     var stage by rememberSaveable { mutableStateOf<String?>(null) }
+    var track by rememberSaveable { mutableStateOf<String?>(null) }
+    /** The line being drawn or edited: "" for a new one, else its id. */
+    var editing by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(shared) { if (shared != null) { tab = Tab.STAGES; stage = null } }
 
     Box(Modifier.fillMaxSize().background(Yaw.bg).systemBarsPadding()) {
@@ -128,14 +139,22 @@ private fun App(shared: String?, onSharedUsed: () -> Unit) {
             // Full-screen modes take over while they run.
             CoDriver.running -> { BackHandler {}; RaceScreen() }
             Recce.active -> RecceScreen { id -> tab = Tab.STAGES; stage = id }
-            replay != null -> ReplayScreen(replay!!, onBack = { replay = null }) { id -> replay = null; tab = Tab.STAGES; stage = id }
+            Navigator.running -> NavScreen()
+            TrackRecorder.recording -> TrackRecordScreen()
+            editing != null -> TrackEditorScreen(editing!!.ifEmpty { null }) { id -> editing = null; if (id != null) { tab = Tab.TRACKS; track = id } }
+            replay != null -> ReplayScreen(replay!!, onBack = { replay = null }, onTrack = { id -> replay = null; tab = Tab.TRACKS; track = id }) { id -> replay = null; tab = Tab.STAGES; stage = id }
             stage != null && tab == Tab.STAGES -> StageScreen(stage!!) { stage = null }
+            track != null && tab == Tab.TRACKS -> {
+                BackHandler { track = null }
+                TrackScreen(track!!, onBack = { track = null }) { editing = track }
+            }
             else -> Column(Modifier.fillMaxSize()) {
                 StatusBar(onGarage = { tab = Tab.GARAGE })
                 Box(Modifier.weight(1f)) {
                     when (tab) {
                         Tab.DASH -> DashScreen(onGarage = { tab = Tab.GARAGE })
                         Tab.DRIFT -> DriftScreen()
+                        Tab.TRACKS -> TracksScreen(onOpen = { track = it }) { editing = "" }
                         Tab.STAGES -> StagesScreen(shared, onSharedUsed) { stage = it }
                         Tab.LOGS -> LogsScreen { replay = it }
                         Tab.GARAGE -> GarageScreen()
@@ -162,6 +181,7 @@ private fun NavBar(tab: Tab, onSelect: (Tab) -> Unit) {
                     when (t) {
                         Tab.DASH -> Icons.Filled.Speed
                         Tab.DRIFT -> Icons.Filled.Explore
+                        Tab.TRACKS -> Icons.Filled.Route
                         Tab.STAGES -> Icons.Filled.Flag
                         Tab.LOGS -> Icons.Filled.History
                         Tab.GARAGE -> Icons.Filled.Build

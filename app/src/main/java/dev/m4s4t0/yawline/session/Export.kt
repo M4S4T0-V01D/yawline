@@ -31,16 +31,17 @@ object Export {
         return sb.toString()
     }
 
-    private fun escape(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    fun escape(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    private fun share(ctx: Context, file: File, mime: String) {
+    fun share(ctx: Context, file: File, mime: String) {
         val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".files", file)
         val send = Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         ctx.startActivity(Intent.createChooser(send, "Share ${file.name}").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    private fun safeName(meta: SessionMeta) = meta.name.replace(Regex("[^A-Za-z0-9 _-]"), "").trim().replace(' ', '_').ifEmpty { meta.id }
+    fun safeName(name: String, id: String) = name.replace(Regex("[^A-Za-z0-9 _-]"), "").trim().replace(' ', '_').ifEmpty { id }
+    private fun safeName(meta: SessionMeta) = safeName(meta.name, meta.id)
 
     fun shareGpx(ctx: Context, meta: SessionMeta) {
         val dir = File(ctx.cacheDir, "export").apply { mkdirs() }

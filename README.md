@@ -5,6 +5,10 @@ Rally telemetry, data logger and digital co-driver for Android, written in Kotli
 - **Dash**: live engine data over OBD-II. RPM bar with a shift light, speed, and 12 tiles you can configure (coolant, boost, AFR/lambda, timing, IAT, battery and anything else your ECU reports), with warnings when coolant runs hot or voltage drops low.
 - **Drift**: live slip angle (heading from the gyro vs. GPS direction of travel), a G-G plot, yaw rate, peak hold, and the line you've driven.
 - **Logs**: 10 Hz recording of position, speed, slip, G and engine data. Replay shows the route coloured by speed, drift, lateral G, throttle or RPM, plus a scrubber, charts and a corner-by-corner breakdown (entry/min/exit speed, radius, max slip, grade). Export as GPX or CSV.
+- **Tracks**: lines to drive, shown on an OpenStreetMap map.
+  - Record a track with GPS, draw one by tapping points or freehand, import a GPX file, or save one from a log.
+  - Edit, flip, rename, and export any saved track as GPX.
+  - Navigate a track forwards or reversed. The app guides you to the line and calls out each turn by voice ("right in 200", "hairpin left now"), warns when you go off route, and tells you when you arrive.
 - **Stages**: pace notes read aloud like a WRC co-driver.
   - Import by pasting or typing, from a text/CSV file, from text shared by Google Lens, or record them on a **recce** with big L/R + grade buttons or voice. Recce notes are pinned to GPS.
   - You can also generate a first draft of notes from a recorded run.
@@ -57,5 +61,6 @@ obd/       ELM327/STN protocol, transports (BT, BLE, USB, sim), PIDs, DTCs
 sensors/   GPS + IMU fusion, drift estimator, RaceBox parser, simulator
 session/   recorder, CSV samples, corner analysis, GPX/CSV export
 notes/     pace-note parser and speech, stages, co-driver, recce
-ui/        Compose screens, gauges, themes
+track/     saved tracks, GPS track recorder, GPX import, turn finder, navigator
+ui/        Compose screens, gauges, themes, OSM map
 ```
